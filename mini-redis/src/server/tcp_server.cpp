@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <thread>
 
 TcpServer::TcpServer(int port)
     : _port(port),
@@ -67,11 +68,17 @@ void TcpServer::start()
 
         std::cout << "Client connected\n";
 
-        ClientSession session(
-            client_fd,
-            _store);
+        std::thread client_thread(
+            [this, client_fd]()
+            {
+                ClientSession session(
+                    client_fd,
+                    _store);
 
-        session.start();
+                session.start();
+            });
+
+        client_thread.detach();
     }
 
     close(_server_fd);
