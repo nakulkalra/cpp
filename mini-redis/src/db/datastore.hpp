@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <mutex>
 
 class DataStore
 {
@@ -19,4 +20,5 @@ public:
 
 private:
     std::unordered_map<std::string, std::string> _store;
+    std::mutex _mutex;
 };
