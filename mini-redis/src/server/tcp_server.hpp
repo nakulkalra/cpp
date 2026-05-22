@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../db/datastore.hpp"
+
 class TcpServer
 {
 public:
@@ -10,4 +12,6 @@ public:
 private:
     int _port;
     int _server_fd;
+
+    DataStore _store;
 };
