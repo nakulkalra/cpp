@@ -17,6 +17,12 @@ add_executable(mini_redis
     src/protocol/command.cpp
 
     src/protocol/resp_writer.cpp
+
+    src/commands/ping_handler.cpp
+    src/commands/set_handler.cpp
+    src/commands/get_handler.cpp
+    src/commands/del_handler.cpp
+    src/commands/command_dispatcher.cpp
 )
 
 target_include_directories(mini_redis PRIVATE src)

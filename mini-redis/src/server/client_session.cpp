@@ -61,97 +61,10 @@ void ClientSession::start()
                 0,
                 result->bytes_consumed);
 
-            std::string response;
-
-            switch (command.type)
-            {
-
-            case CommandType::PING:
-            {
-                response =
-                    RespWriter::simpleString("PONG");
-                break;
-            }
-
-            case CommandType::SET:
-            {
-
-                if (command.args.size() < 2)
-                {
-                    response =
-                        RespWriter::error(
-                            "wrong number of arguments");
-                    break;
-                }
-
-                _store.set(
-                    command.args[0],
-                    command.args[1]);
-
-                response =
-                    RespWriter::simpleString("OK");
-                break;
-            }
-
-            case CommandType::GET:
-            {
-
-                if (command.args.empty())
-                {
-                    response =
-                        RespWriter::error(
-                            "wrong number of arguments");
-                    break;
-                }
-
-                auto value =
-                    _store.get(command.args[0]);
-
-                if (value.has_value())
-                {
-
-                    response =
-                        RespWriter::bulkString(
-                            *value);
-                }
-                else
-                {
-
-                    response =
-                        RespWriter::nullBulkString();
-                }
-
-                break;
-            }
-
-            case CommandType::DEL:
-            {
-
-                if (command.args.empty())
-                {
-                    response =
-                        RespWriter::error(
-                            "wrong number of arguments");
-                    break;
-                }
-
-                bool deleted =
-                    _store.del(command.args[0]);
-
-                response =
-                    RespWriter::integer(
-                        deleted ? 1 : 0);
-                break;
-            }
-
-            default:
-            {
-                response =
-                    RespWriter::error(
-                        "unknown command");
-            }
-            }
-
+            std::string response =
+                _dispatcher.dispatch(
+                    command,
+                    _store);
             send(
                 _client_fd,
                 response.c_str(),

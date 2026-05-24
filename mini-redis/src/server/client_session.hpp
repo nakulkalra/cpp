@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../db/datastore.hpp"
+#include "../commands/command_dispatcher.hpp"
 
 #include <string>
 
@@ -19,4 +20,5 @@ private:
     DataStore &_store;
 
     std::string _buffer;
+    CommandDispatcher _dispatcher;
 };
