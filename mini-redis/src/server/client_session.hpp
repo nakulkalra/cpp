@@ -2,6 +2,8 @@
 
 #include "../db/datastore.hpp"
 
+#include <string>
+
 class ClientSession
 {
 public:
@@ -13,5 +15,8 @@ public:
 
 private:
     int _client_fd;
+
     DataStore &_store;
+
+    std::string _buffer;
 };

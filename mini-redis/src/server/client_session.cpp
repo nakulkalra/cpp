@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "../protocol/resp_writer.hpp"
 
 ClientSession::ClientSession(
     int client_fd,
@@ -29,113 +30,134 @@ void ClientSession::start()
             sizeof(buffer) - 1,
             0);
 
+        std::cout << "Raw bytes:\n"
+                  << buffer
+                  << '\n';
+
         if (bytes_received <= 0)
         {
             std::cout << "Client disconnected\n";
             break;
         }
 
-        std::string input(buffer);
+        _buffer.append(buffer, bytes_received);
 
-        while (!input.empty() &&
-               (input.back() == '\n' ||
-                input.back() == '\r'))
-        {
-            input.pop_back();
-        }
-
-        std::cout << "Received: "
-                  << input
-                  << '\n';
-
-        Command command = Parser::parse(input);
-
-        std::string response;
-
-        switch (command.type)
+        while (true)
         {
 
-        case CommandType::PING:
-        {
-            response = "+PONG\r\n";
-            break;
-        }
+            auto result =
+                Parser::parse(_buffer);
 
-        case CommandType::SET:
-        {
-
-            if (command.args.size() < 2)
+            if (!result.has_value())
             {
-                response = "-ERR wrong number of arguments\r\n";
                 break;
             }
 
-            _store.set(
-                command.args[0],
-                command.args[1]);
+            Command command =
+                result->command;
 
-            response = "+OK\r\n";
-            break;
-        }
+            // Remove consumed bytes
+            _buffer.erase(
+                0,
+                result->bytes_consumed);
 
-        case CommandType::GET:
-        {
+            std::string response;
 
-            if (command.args.empty())
+            switch (command.type)
             {
-                response = "-ERR wrong number of arguments\r\n";
-                break;
-            }
 
-            auto value = _store.get(command.args[0]);
-
-            if (value.has_value())
+            case CommandType::PING:
             {
                 response =
-                    "$" +
-                    std::to_string(value->size()) +
-                    "\r\n" +
-                    *value +
-                    "\r\n";
-            }
-            else
-            {
-                response = "$-1\r\n";
-            }
-
-            break;
-        }
-
-        case CommandType::DEL:
-        {
-
-            if (command.args.empty())
-            {
-                response = "-ERR wrong number of arguments\r\n";
+                    RespWriter::simpleString("PONG");
                 break;
             }
 
-            bool deleted = _store.del(command.args[0]);
+            case CommandType::SET:
+            {
 
-            response = deleted
-                           ? ":1\r\n"
-                           : ":0\r\n";
+                if (command.args.size() < 2)
+                {
+                    response =
+                        RespWriter::error(
+                            "wrong number of arguments");
+                    break;
+                }
 
-            break;
+                _store.set(
+                    command.args[0],
+                    command.args[1]);
+
+                response =
+                    RespWriter::simpleString("OK");
+                break;
+            }
+
+            case CommandType::GET:
+            {
+
+                if (command.args.empty())
+                {
+                    response =
+                        RespWriter::error(
+                            "wrong number of arguments");
+                    break;
+                }
+
+                auto value =
+                    _store.get(command.args[0]);
+
+                if (value.has_value())
+                {
+
+                    response =
+                        RespWriter::bulkString(
+                            *value);
+                }
+                else
+                {
+
+                    response =
+                        RespWriter::nullBulkString();
+                }
+
+                break;
+            }
+
+            case CommandType::DEL:
+            {
+
+                if (command.args.empty())
+                {
+                    response =
+                        RespWriter::error(
+                            "wrong number of arguments");
+                    break;
+                }
+
+                bool deleted =
+                    _store.del(command.args[0]);
+
+                response =
+                    RespWriter::integer(
+                        deleted ? 1 : 0);
+                break;
+            }
+
+            default:
+            {
+                response =
+                    RespWriter::error(
+                        "unknown command");
+            }
+            }
+
+            send(
+                _client_fd,
+                response.c_str(),
+                response.size(),
+                0);
         }
-
-        default:
-        {
-            response = "-ERR unknown command\r\n";
-            break;
-        }
-        }
-
-        send(
-            _client_fd,
-            response.c_str(),
-            response.size(),
-            0);
     }
 
     close(_client_fd);

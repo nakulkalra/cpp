@@ -15,6 +15,8 @@ add_executable(mini_redis
 
     src/protocol/parser.cpp
     src/protocol/command.cpp
+
+    src/protocol/resp_writer.cpp
 )
 
 target_include_directories(mini_redis PRIVATE src)
